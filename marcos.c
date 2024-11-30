@@ -15,7 +15,6 @@ typedef struct No {
 
 int fezSplit = 0;
 
-
 No* criaNo(int folha, No* pai);
 No* cisaoFolha(No* raiz, int valorMeio);
 No* insereChave(No* raiz, int chave, int ehFolha);
@@ -38,13 +37,15 @@ No* criaNo(int folha, No* pai) {
 }
 
 // Encontra posição para inserir ordenadamente
+// Agora desloca os ponteiros também, preservando a ordem dos filhos. 
 int encontraIndexInsercaoFolha(No* raiz, int chave){
-    int i = raiz->numChaves - 1;
-    while (i >= 0 && raiz->chaves[i] > chave) {
-        raiz->chaves[i + 1] = raiz->chaves[i]; // Desloca a chave maior
+    int i = raiz->numChaves;
+    while (i > 0 && raiz->chaves[i-1] > chave) {
+        raiz->chaves[i] = raiz->chaves[i-1]; // Desloca a chave maior
+        raiz->ponteiros[i+1] = raiz->ponteiros[i];
         i--;
     }
-    return i + 1;
+    return i;
 }
 
 //A função de encontrar o filho para inserir não estava funcionando;
@@ -77,7 +78,6 @@ No* insereChave(No* raiz, int chave, int ehFolha) {
 
     if (!raiz) {
         raiz = criaNo(ehFolha, NULL);
-
         if (!raiz) return NULL;
     }
     
@@ -116,10 +116,8 @@ No* insereChave(No* raiz, int chave, int ehFolha) {
     return raiz;
 }
 
+//Agora só verifica cisão no pai. A chave já foi inserida.
 No* insereChaveInterno(No* raiz, int chave){
-    int idxFolha = encontraIndexInsercaoFolha(raiz, chave);
-    raiz->chaves[idxFolha] = chave;
-    raiz->numChaves++;
     if(raiz->numChaves == 3){
         return cisaoFolha(raiz, raiz->chaves[1]);
     }
@@ -128,7 +126,9 @@ No* insereChaveInterno(No* raiz, int chave){
 
 
 No* cisaoFolha(No* raiz, int valorMeio){
+    
     if(!(raiz->pai)){
+
         No* novaRaiz = criaNo(!FOLHA, NULL);
         novaRaiz->chaves[0] = valorMeio;
         
@@ -167,12 +167,20 @@ No* cisaoFolha(No* raiz, int valorMeio){
         raiz->pai = novaRaiz;
         return novaRaiz;
     }
-    else{
+    else{ 
+        //Mudei onde a chave é inserida no pai, porque caso a chave que precisa de cisão
+        //tenha um irmão à direita, estaríamos substituindo ele por filhoMenor. Por isso
+        //modifiquei encontraIndexInsercaoFolha para deslocar as ponteiros também, não
+        //só as chaves. Assim caso algum chave vá para a direita, seu filho vai junto.
+        int idxFolha = encontraIndexInsercaoFolha(raiz->pai, valorMeio);
+        raiz->pai->chaves[idxFolha] = valorMeio;
+        raiz->pai->numChaves++;
+
         //No início encontramos o índice do ponteiro onde o filhoMenor vai entrar no pai.
         //Caso a chave entre no ponteiro 1, idx será 2 e caso entre no ponteiro 2
         //será 3 (e causará cisão acima dele).
         int idx = encontraIndexInsercaoPonteiro(raiz->pai, raiz->chaves[0])+1;
-
+        
         No* filhoMenor = criaNo(FOLHA, raiz->pai);
         filhoMenor = insereChave(filhoMenor, raiz->chaves[0], FOLHA);
         filhoMenor->ehFolha = raiz->ehFolha;
@@ -184,24 +192,26 @@ No* cisaoFolha(No* raiz, int valorMeio){
         raiz->pai->ponteiros[idx-1]->chaves[0] = temp;
         raiz->pai->ponteiros[idx]->numChaves++;
         raiz->pai->ponteiros[idx-1]->numChaves--;
+        
 
         //Caso tenha feito a cisão de um nó interno, precisamos ajustar os ponteiros dele.
         //Tiramos o nó que vamos mandar para o pai, ajustamos os ponteiros entre raiz e
         //filhoMenor de forma parecida com o que foi feito na cisão de uma raíz não-folha.
         if(!raiz->ehFolha){
             swapNo(filhoMenor);
-                   
+            
             filhoMenor->ponteiros[0]=raiz->ponteiros[2];     
-            filhoMenor->ponteiros[1]=raiz->ponteiros[3];
+            filhoMenor->ponteiros[1]=raiz->ponteiros[3]; 
             raiz->ponteiros[2]->pai=filhoMenor;
             raiz->ponteiros[3]->pai=filhoMenor;
           
             raiz->ponteiros[2]=raiz->ponteiros[3]=NULL;
         }
         
+        
         raiz->pai->ponteiros[idx] = filhoMenor;
         //Como o ajuste de nós em níveis mais altos depende que os nós abaixo dele estejam
-        //ajustados, faz mais sentido só enviar a chave do meio para o pai e lidar com
+        //ajustados, faz mais sentido só fazer a cisão do pai e lidar com
         //possíveis cisões propagadas quando terminarmos a cisão do nó atual.
         //Por isso optei por botar essa função no final.
         insereChaveInterno(raiz->pai, valorMeio);
@@ -245,10 +255,15 @@ int main() {
     raiz = insereChave(raiz, 5, !FOLHA);
     raiz = insereChave(raiz, 20, !FOLHA);
     raiz = insereChave(raiz, 25, !FOLHA);
-    // raiz = insereChave(raiz, 26, !FOLHA);
-    // raiz = insereChave(raiz, 27, !FOLHA);
-    // raiz = insereChave(raiz, 28, !FOLHA);
-    // raiz = insereChave(raiz, 29, !FOLHA);
+    raiz = insereChave(raiz, 26, !FOLHA);
+    raiz = insereChave(raiz, 27, !FOLHA);
+    raiz = insereChave(raiz, 28, !FOLHA);
+    raiz = insereChave(raiz, 29, !FOLHA);
+    raiz = insereChave(raiz, 21, !FOLHA);
+    raiz = insereChave(raiz, 22, !FOLHA);
+    raiz = insereChave(raiz, 23, !FOLHA);
+    raiz = insereChave(raiz, 6, !FOLHA);
+    raiz = insereChave(raiz, 7, !FOLHA);
 
     imprimeArvore(raiz);
 
